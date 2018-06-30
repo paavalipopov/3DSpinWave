@@ -50,7 +50,7 @@ void SpinWaveProblem1D::goThroughGrid() {
 
 
 	std::ostringstream filename;
-	filename << "results N " << N << " H2 " << std::setprecision(3) << H2 << " debug " << debug << " l1 to d " << l1/d << " k to b_1 "
+	filename << "results N " << N << " H2 " << std::setprecision(3) << H2 << " l1 to d " << l1/d << " k to b_1 "
 				<< kStart/b(1) << "-" << kEnd/b(1) << " O " << std::setprecision(5) << omegaStart << "-" << omegaEnd;
 	ofstream fout1;
 	fout1.open(filename.str());
@@ -61,7 +61,7 @@ void SpinWaveProblem1D::goThroughGrid() {
 	if(baseSplit != 0) {
 		filename.str("");
 		filename.clear();
-		filename << "exact results N " << N << " H2 " << std::setprecision(3) << H2 << " debug " << debug <<  " l1 to d " << l1/d << " k to b_1 "
+		filename << "exact results N " << N << " H2 " << std::setprecision(3) << H2 <<  " l1 to d " << l1/d << " k to b_1 "
 				<< kStart/b(1) << "-" << kEnd/b(1) << " O " << std::setprecision(5) << omegaStart << "-" << omegaEnd;
 		fout2.open(filename.str());
 		fout2 << "k/b_1 omega omegaIdeal1 omegaIdeal2 These are results for grid: k: "
@@ -158,25 +158,17 @@ void SpinWaveProblem1D::fixEigens() {
 	eigenValues = ces.eigenvalues();
 	eigenVectors = ces.eigenvectors();
 
-	if(debug) {
-//		lambda squared into lambda
-		for(int i = 0; i < 2*N+1; i++) {
-			eigenValues(i) = sqrt(eigenValues(i).real());
-		}
-
-		for(int i = 0; i < 2*N+1; i++) {
-			for(int j = 0; j < 2*N+1; j++) {
-				if(abs(eigenVectors(i, j).real()) / abs(eigenVectors(i, j).imag()) > pow(10, 20) )
-					eigenVectors(i, j) = eigenVectors(i, j).real();
-				if(abs(eigenVectors(i, j).imag()) / abs(eigenVectors(i, j).real()) > pow(10, 20) )
-					eigenVectors(i, j) = eigenVectors(i, j).imag();
-			}
-		}
+//	lambda squared into lambda
+	for(int i = 0; i < 2*N+1; i++) {
+		eigenValues(i) = sqrt(eigenValues(i).real());
 	}
 
-	else {
-		for(int i = 0; i < 2*N+1; i++) {
-			eigenValues(i) = sqrt(eigenValues(i));
+	for(int i = 0; i < 2*N+1; i++) {
+		for(int j = 0; j < 2*N+1; j++) {
+			if(abs(eigenVectors(i, j).real()) / abs(eigenVectors(i, j).imag()) > pow(10, 20) )
+				eigenVectors(i, j) = eigenVectors(i, j).real();
+			if(abs(eigenVectors(i, j).imag()) / abs(eigenVectors(i, j).real()) > pow(10, 20) )
+				eigenVectors(i, j) = eigenVectors(i, j).imag();
 		}
 	}
 
@@ -233,7 +225,7 @@ void SpinWaveProblem1D::refillMatrix1(double k) {
 	//-D_1
 	for(int i = -N; i <= N; i++) {
 		for(int j = -N; j <= N; j++) {
-			Matrix1(i+N + 2*N+1, j+N + 6*N+3) = -1.0 * kroneckerD(i, j) * std::exp(abs((k + b(i))) * d*0.5);
+			Matrix1(i+N + 2*N+1, j+N + 6*N+3) = -1.0 * kroneckerD(i, j) * std::exp(-1.0 * abs((k + b(i))) * d*0.5);
 			}
 	}
 
@@ -285,7 +277,7 @@ void SpinWaveProblem1D::refillMatrix1(double k) {
 	//-D_2
 	for(int i = -N; i <= N; i++) {
 		for(int j = -N; j <= N; j++) {
-			Matrix1(i+N + 6*N+3, j+N + 6*N+3) = -1.0 * kroneckerD(i, j) * abs((k + b(i))) * std::exp(abs((k + b(i))) * d*0.5);
+			Matrix1(i+N + 6*N+3, j+N + 6*N+3) = -1.0 * kroneckerD(i, j) * abs((k + b(i))) * std::exp(-1.0 * abs((k + b(i))) * d*0.5);
 			}
 	}
 
@@ -300,62 +292,62 @@ double kroneckerD(int i, int j) {
 }
 
 double SpinWaveProblem1D::checkNull(double& k, double omega1, double omega2, double& startingDet, double& foundOmega) {
-	if(Debug == 1)
-		cout << "Checking (" << omega1 << ", " << omega2 << ")" << endl;
-	if((omega2 - omega1) <= omegaDelta/omegaSteps/(baseSplit*baseSplit + baseSplit)) {
-		if(Debug == 1)
-			cout << "Found nothing, it's too small" << endl;
-		return 0;
-	}
-
-	if(Debug == 1)
-		cout << "It isn't too small, calculating determinants" << endl;
-	vector<double> determinants;
-	for(double omega = omega1; omega < omega2 + (omega2-omega1) / baseSplit * 0.5; omega += (omega2-omega1) / baseSplit) { //в целях чтобы точно дойти до
-		determinants.push_back(abs(findDeterminant(k, omega)));															//омеги 2
-	}
-
-	for(int i = 0;  i <= baseSplit; i++) {
-		if(Debug == 1)
-			cout << "Checking determinant " << determinants[i] << endl;;
-		if((startingDet/determinants[i]) > pow(10, N)) {
-			if(Debug == 1) {
-				cout << "Found omega = " << omega1 + (omega2-omega1) / baseSplit * (i) << " with determinant " << determinants[i] << endl;
-				cin.get();
-			}
-			return omega1 + (omega2-omega1) / baseSplit * (i);
-		}
-		if(Debug == 1)
-			cout << "It didn't fit" << endl;
-	}
-
-	for(int i = 1;  i < baseSplit; i++) {
-		if(Debug == 1) {
-			cin.get();
-			cout << "Checking determinant " << determinants[i] << " again" << endl;
-		}
-
-		if(determinants[i] < startingDet && determinants[i] <= determinants[0] && determinants[i] <= determinants[baseSplit]) {
-			if(Debug == 1)
-				cout << "It is interesting" << endl;
-			if(determinants[i-1] < determinants[i+1] && determinants[i-1] <= determinants[0] && determinants[i-1] <= determinants[10]) {
-				if(Debug == 1)
-					cout << "Checking previous interval" << endl;
-				foundOmega = checkNull(k, omega1 + (omega2 - omega1) / baseSplit * (i-1), omega1 + (omega2 - omega1) / baseSplit * i, startingDet, foundOmega);
-				if(foundOmega != 0)
-					return foundOmega;
-			}
-
-			else if(determinants[i-1] > determinants[i+1] && determinants[i+1] <= determinants[0] && determinants[i+1] <= determinants[10]) {
-				if(Debug == 1)
-					cout << "Checking further interval" << endl;
-				foundOmega = checkNull(k, omega1 + (omega2 - omega1) / baseSplit * i, omega1 + (omega2 - omega1) / baseSplit * (i+1), startingDet, foundOmega);
-				if(foundOmega != 0)
-					return foundOmega;
-			}
-		}
-	}
-
+//	if(Debug == 1)
+//		cout << "Checking (" << omega1 << ", " << omega2 << ")" << endl;
+//	if((omega2 - omega1) <= omegaDelta/omegaSteps/(baseSplit*baseSplit + baseSplit)) {
+//		if(Debug == 1)
+//			cout << "Found nothing, it's too small" << endl;
+//		return 0;
+//	}
+//
+//	if(Debug == 1)
+//		cout << "It isn't too small, calculating determinants" << endl;
+//	vector<double> determinants;
+//	for(double omega = omega1; omega < omega2 + (omega2-omega1) / baseSplit * 0.5; omega += (omega2-omega1) / baseSplit) { //в целях чтобы точно дойти до
+//		determinants.push_back(abs(findDeterminant(k, omega)));															//омеги 2
+//	}
+//
+//	for(int i = 0;  i <= baseSplit; i++) {
+//		if(Debug == 1)
+//			cout << "Checking determinant " << determinants[i] << endl;;
+//		if((startingDet/determinants[i]) > pow(10, N)) {
+//			if(Debug == 1) {
+//				cout << "Found omega = " << omega1 + (omega2-omega1) / baseSplit * (i) << " with determinant " << determinants[i] << endl;
+//				cin.get();
+//			}
+//			return omega1 + (omega2-omega1) / baseSplit * (i);
+//		}
+//		if(Debug == 1)
+//			cout << "It didn't fit" << endl;
+//	}
+//
+//	for(int i = 1;  i < baseSplit; i++) {
+//		if(Debug == 1) {
+//			cin.get();
+//			cout << "Checking determinant " << determinants[i] << " again" << endl;
+//		}
+//
+//		if(determinants[i] < startingDet && determinants[i] <= determinants[0] && determinants[i] <= determinants[baseSplit]) {
+//			if(Debug == 1)
+//				cout << "It is interesting" << endl;
+//			if(determinants[i-1] < determinants[i+1] && determinants[i-1] <= determinants[0] && determinants[i-1] <= determinants[10]) {
+//				if(Debug == 1)
+//					cout << "Checking previous interval" << endl;
+//				foundOmega = checkNull(k, omega1 + (omega2 - omega1) / baseSplit * (i-1), omega1 + (omega2 - omega1) / baseSplit * i, startingDet, foundOmega);
+//				if(foundOmega != 0)
+//					return foundOmega;
+//			}
+//
+//			else if(determinants[i-1] > determinants[i+1] && determinants[i+1] <= determinants[0] && determinants[i+1] <= determinants[10]) {
+//				if(Debug == 1)
+//					cout << "Checking further interval" << endl;
+//				foundOmega = checkNull(k, omega1 + (omega2 - omega1) / baseSplit * i, omega1 + (omega2 - omega1) / baseSplit * (i+1), startingDet, foundOmega);
+//				if(foundOmega != 0)
+//					return foundOmega;
+//			}
+//		}
+//	}
+//
 	return 0;
 }
 
