@@ -11,7 +11,7 @@ template <typename T> int sgn(T val) {
     return (T(0) < val) - (val < T(0));
 }
 
-SpinWaveProblem1D::SpinWaveProblem1D(int N, int baseSplit, int kSteps, int omegaSteps, double H2, double l1, double l2, double d, double omegaStart,
+SpinWaveProblem1D::SpinWaveProblem1D(int N, int baseSplit, int kSteps, int omegaSteps, double H1, double H2, double l1, double l2, double d, double omegaStart,
 									double omegaEnd, double kStart, double kEnd, bool debug){
 	this->N = N;
 	this->baseSplit = baseSplit;
@@ -28,7 +28,7 @@ SpinWaveProblem1D::SpinWaveProblem1D(int N, int baseSplit, int kSteps, int omega
 	this->l2 = l2;
 	this->d = d;
 	gamma = 1.76e7;
-	H1 = 400;
+	this->H1 = H1;
 	this->H2 = H2;
 	M4pi = 1750;
 
@@ -54,7 +54,7 @@ void SpinWaveProblem1D::goThroughGrid() {
 				<< kStart/b(1) << "-" << kEnd/b(1) << " O " << std::setprecision(5) << omegaStart << "-" << omegaEnd;
 	ofstream fout1;
 	fout1.open(filename.str());
-	fout1 << "k/b_1 omega omegaIdeal1 omegaIdeal2 These are results for grid: k: "
+	fout1 << "k/b_1 omega f omegaIdeal1 omegaIdeal2 These are results for grid: k: "
 	<< kSteps << " points, omega starting: " << omegaSteps << " points" << endl;
 
 	ofstream fout2;
@@ -81,7 +81,7 @@ void SpinWaveProblem1D::goThroughGrid() {
 			if(isMinimum(determinants, i, 6)) {
 				if(baseSplit != 0)
 					suspiciousOmega.push_back(checkNull(k, omegaStart + omegaDelta/omegaSteps*(i-1),omegaStart + omegaDelta/omegaSteps*(i+1)));
-				fout1 << k/b(1) << " " << omegaStart + omegaDelta/omegaSteps * (i) << " " << omegaIdeal(k, omegaH1, 1)
+				fout1 << k/b(1) << " " << omegaStart + omegaDelta/omegaSteps * (i) << " " << (omegaStart + omegaDelta/omegaSteps * (i))/(2.0*M_PI) << " " << omegaIdeal(k, omegaH1, 1)
 								<< " " << omegaIdeal(k, omegaH2, 1) << endl;
 			}
 		}
@@ -128,12 +128,17 @@ double SpinWaveProblem1D::mu2(double omega) {
 }
 
 std::complex<double> SpinWaveProblem1D::M(int n, double omega) {
+	double d2 = 1.0 * d;
 	if (n == 0)
-		return (mu1(omega) * (l1+l2-d*4) + mu2(omega) * (2*d)) / (l1+l2-2*d);
+		return (mu1(omega) * (l1+l2-2.0*d - 2.0 * d2) + mu2(omega) * (2.0 * d2)) / (l1+l2-2.0*d);
 
 	else {
-		std::complex<double> exp1 = exp(-1.0i * b(n) * (l1*0.5-d)) - 1.0 + exp(-1.0i * b(n) * (l1*0.5+l2-2*d))- exp(-1.0i * b(n) * (l1*0.5)) + exp(-1.0i * b(n) * (l1+l2-2.0*d)) - exp(-1.0i * b(n) * (l1*0.5+l2-d));
-		std::complex<double> exp2 = exp(-1.0i * b(n) * (l1*0.5)) - exp(-1.0i * b(n) * (l1*0.5-d)) + exp(-1.0i * b(n) * (l1*0.5+l2-d)) - exp(-1.0i * b(n) * (l1*0.5+l2-2.0*d));
+		std::complex<double> exp1 = exp(-1.0i * b(n) * (l1*0.5 - 0.5*d - 0.5*d2)) - 1.0
+		+ exp(-1.0i * b(n) * (l1*0.5+l2 - 1.5*d - 0.5*d2)) - exp(-1.0i * b(n) * (l1*0.5 - 0.5*d + 0.5*d2))
+		+ exp(-1.0i * b(n) * (l1+l2-2.0*d)) - exp(-1.0i * b(n) * (l1*0.5+l2 - 1.5*d + 0.5*d2));
+
+		std::complex<double> exp2 = exp(-1.0i * b(n) * (l1*0.5 - 0.5*d + 0.5*d2)) - exp(-1.0i * b(n) * (l1*0.5 - 0.5*d - 0.5*d2))
+		+ exp(-1.0i * b(n) * (l1*0.5+l2 - 1.5*d + 0.5*d2)) - exp(-1.0i * b(n) * (l1*0.5+l2 - 1.5*d - 0.5*d2));
 
 		return 1.0i / ((l1+l2-2.0*d)*b(n)) * (mu1(omega)* exp1 + mu2(omega)* exp2);
 	}
